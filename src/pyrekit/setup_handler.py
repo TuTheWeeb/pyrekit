@@ -6,7 +6,7 @@ from json import loads, dumps
 import time
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
-from pyrekit_server import Signal, pack_app, ServerProcess
+from server import Signal, pack_app, ServerProcess
 import importlib
 import sys
 

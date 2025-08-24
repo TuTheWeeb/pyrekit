@@ -1,5 +1,5 @@
 import sys
-from pyrekit_setup import setup, handle_script, list_scripts
+from src.pyrekit.setup_handler import setup, handle_script, list_scripts
 
 
 HELP_STRING = """Choose one of the flags to use pyreact:
@@ -19,7 +19,7 @@ def get_input():
     return []
 
 
-if __name__ == "__main__":
+def main():
     entry = get_input()
     if len(entry) != 0:
         if entry[0] == "--setup" and len(entry) > 1:

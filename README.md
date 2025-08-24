@@ -1,9 +1,21 @@
-# PyreKit - Python and react toolkit
--------
+# Pyrekit - Python and react toolkit
 
-A toolkit to make react apps and run them with python as backend, it can be paired with pywebview to use as a desktop application
+A simple and powerful tool for building desktop applications using Python for the backend and React/TailwindCSS for the frontend, it includes pywebview to make desktop apps. Features include a development server with hot-reloading for both backend and frontend, and a simple build process.
 
-Use to see all the options:
+## Prerequisites
+
+Before you can use Pyrekit, you must have the following software installed:
+
+- **Python 3.10+**
+- **Node.js and npm**
+
+You can verify the installations by running `python --version` and `npm --version`.
+
+## Installation
+
+To install Pyrekit, you can clone this repository and install it in editable mode:
+
 ```bash
-    python pyrekit.py
-```
+git clone [https://github.com/TuTheWeeb/pyrekit.git](https://github.com/TuTheWeeb/pyrekit.git)
+cd pyrekit
+pip install -e .

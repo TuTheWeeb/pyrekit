@@ -1,6 +1,6 @@
-watchdog
+beautifulsoup4>=4.12.0
+Flask>=2.3.0
+Flask-Cors>=4.0.0
+watchdog>=3.0.0
+pywebview>=4.0.0
 requests
-pywebview
-beautifulsoup4
-flask
-flask-cors

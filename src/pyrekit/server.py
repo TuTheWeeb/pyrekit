@@ -4,7 +4,6 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from pyrekit_files import read_file
 from multiprocessing import Process, Value
-import webview
 import logging
 
 class Signal:

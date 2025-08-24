@@ -1,0 +1,6 @@
+watchdog
+requests
+pywebview[qt]
+beautifulsoup4
+flask
+flask-cors

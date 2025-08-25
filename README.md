@@ -17,6 +17,5 @@ To install Pyrekit, you can clone this repository and install it in editable mod
 
 ```bash
 git clone https://github.com/TuTheWeeb/pyrekit.git
-cd pyrekit
-pip install -e .
+pip install pyrekit/
 ```

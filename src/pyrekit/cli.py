@@ -1,5 +1,5 @@
 import sys
-from src.pyrekit.setup_handler import setup, handle_script, list_scripts
+from pyrekit.setup_handler import setup, handle_script, list_scripts
 
 
 HELP_STRING = """Choose one of the flags to use pyreact:

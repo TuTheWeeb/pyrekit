@@ -1,6 +1,6 @@
 from subprocess import run
 from os import mkdir
-from pyrekit_files import create_files, read_file
+from files import create_files, read_file
 from typing import Dict, Type
 from json import loads, dumps
 import time

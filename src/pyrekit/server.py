@@ -2,7 +2,7 @@ import inspect
 from bs4 import BeautifulSoup
 from flask import Flask, jsonify
 from flask_cors import CORS
-from pyrekit_files import read_file
+from files import read_file
 from multiprocessing import Process, Value
 import logging
 

@@ -128,7 +128,7 @@ class AppMeta(type):
 
                 options = {'methods': http_methods}
                 routes_to_register.append((rule, item_name, options))
-                print(f"Discovered route: {rule} ({options['methods']}) -> {name}.{item_name}")
+                # print(f"Discovered route: {rule} ({options['methods']}) -> {name}.{item_name}")
 
         if not routes_to_register:
             return

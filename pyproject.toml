@@ -1,11 +1,7 @@
-# pyproject.toml
-
-# This section defines the build system tools, telling pip how to build your package.
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-# This section contains all the project metadata, replacing the setup() function.
 [project]
 name = "pyrekit"
 version = "0.1.0"
@@ -21,8 +17,6 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-# This is where you list your project's dependencies.
-# It directly replaces the 'install_requires' list.
 dependencies = [
     "beautifulsoup4>=4.12.0",
     "Flask>=2.3.0",
@@ -32,17 +26,12 @@ dependencies = [
     "requests",
 ]
 
-# This section is for project-related URLs.
 [project.urls]
 "Homepage" = "https://github.com/TuTheWeeb/pyrekit"
 "Repository" = "https://github.com/TuTheWeeb/pyrekit"
 
-# This section defines command-line scripts, replacing 'entry_points'.
 [project.scripts]
 pyrekit = "pyrekit.cli:main"
 
-# This section is for tool-specific configurations.
-# 'include_package_data' is a setuptools option, so it goes here.
-# The 'packages' find directive is now the default and doesn't need to be specified.
 [tool.setuptools]
 include-package-data = true

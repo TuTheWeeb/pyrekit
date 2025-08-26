@@ -56,7 +56,7 @@ export default {
 INPUT_CSS = """@import "tailwindcss";"""
 
 MAIN_PY = """from flask import jsonify
-from pyrekit.server_helper import Server, ServerProcess, pack_app
+from pyrekit.server import Server, ServerProcess, pack_app
 import webview
 
 # don't rename this class

@@ -8,7 +8,7 @@ from watchdog.observers import Observer
 import importlib
 import sys
 from subprocess import run
-from os import mkdir
+from os import mkdir, getcwd
 
 
 class EventHandler(FileSystemEventHandler):
@@ -93,6 +93,11 @@ def setup(AppName: str = "PyReact"):
     command("npm install react react-dom esbuild tailwindcss @tailwindcss/cli")
 
 def get_server_handle() -> Type:
+    project_path = getcwd()
+
+    if project_path not in sys.path:
+        sys.path.insert(0, project_path)
+
     try:
         # rewrites the cached server module, so that hot-reload works
         if 'main' in sys.modules:
@@ -100,8 +105,18 @@ def get_server_handle() -> Type:
 
         from main import AppServer
         return AppServer
+
     except ImportError:
         raise ImportError("ERROR: You probably renamed the AppServer class in main.py, make sure it's still AppServer")
+    except Exception as e:
+        # Catch other potential errors
+        print(f"An unexpected error occurred: {e}")
+        raise
+    finally:
+        # Clean up by removing the path
+        if project_path in sys.path:
+            sys.path.remove(project_path)
+
 
 def open_server(signal: Signal, DEV = False) -> ServerProcess:
     AppServer = get_server_handle()

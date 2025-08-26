@@ -13,9 +13,15 @@ You can verify the installations by running `python --version` and `npm --versio
 
 ## Installation
 
-To install Pyrekit, you can clone this repository and install it in editable mode:
+To install Pyrekit, you can clone this repository or install it using pypi repository:
 
+### GitHub:
 ```bash
 git clone https://github.com/TuTheWeeb/pyrekit.git
 pip install pyrekit/
+```
+
+### Pip
+```bash
+pip install pyrekit
 ```

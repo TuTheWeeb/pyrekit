@@ -176,7 +176,7 @@ def create_function(function_info: Dict[str, str]):
     function {function_info['name']}() {{
             ret = {{}};
 
-            fetch('{function_info.name.replace("_", "/")}')
+            fetch('{function_info["name"].replace("_", "/")}')
             .then(res => res.json())
             .then(data => ret = data)
             .catch(err => console.log(err));
@@ -188,7 +188,9 @@ def create_function(function_info: Dict[str, str]):
 def pack_server_functions() -> str:
     functions = parse("main.py")
     functions = [create_function(item) for item in functions]
+    print("functions: ", functions)
     server_ts = ""
+
     for item in functions:
         server_ts += item
     

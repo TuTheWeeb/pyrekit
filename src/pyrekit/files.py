@@ -104,6 +104,10 @@ def create_files(AppName: str = "PyReact"):
 
 
 def read_file(path: str) -> str:
+    """
+        Read file and return content, if not exists, print error and returns empty string
+    """
+
     try:
         with open(path, "r") as fd:
             return fd.read()

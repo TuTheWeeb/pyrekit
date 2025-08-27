@@ -12,6 +12,10 @@ from os import mkdir, getcwd
 
 
 class EventHandler(FileSystemEventHandler):
+    """
+        Used to find when a file is modified
+    """
+
     def __init__(self, sig: Signal):
         super().__init__()
         self.sig: Signal = sig
@@ -24,6 +28,10 @@ class EventHandler(FileSystemEventHandler):
             self.sig.flip_updated()
 
 def open_observer(sig: Signal, path: str, recursive=True):
+    """
+        Created to facilitate the creation of observers
+    """
+
     event_handler = EventHandler(sig)
     observer = Observer()
     observer.schedule(event_handler, path, recursive=recursive)
@@ -32,6 +40,9 @@ def open_observer(sig: Signal, path: str, recursive=True):
 
 
 def check_modifications(sig: Signal, path: str = "src/"):
+    """
+        A quick way to open a observer and check for modifications
+    """
     observer = open_observer(sig, path)
 
     print("Press CTRL + C to close.")
@@ -46,6 +57,9 @@ def check_modifications(sig: Signal, path: str = "src/"):
 
 
 def get_package() -> Dict[str, str]:
+    """
+        Gets package.json or close the entire programn if not found
+    """
     json_str = read_file("package.json")
     if len(json_str) != 0:
         return loads(json_str)
@@ -55,10 +69,16 @@ def get_package() -> Dict[str, str]:
 
 
 def command(c: str, hide: bool = False):
+    """
+        Runs a command
+    """
     run(c.split(" "), capture_output=hide)
 
 
 def setup(AppName: str = "PyReact"):
+    """
+        Setups the project, creating a package.json and creating the src, build dirs, and all the files
+    """
     try:
         mkdir("src")
         mkdir("build")
@@ -93,6 +113,9 @@ def setup(AppName: str = "PyReact"):
     command("npm install react react-dom esbuild tailwindcss @tailwindcss/cli")
 
 def get_server_handle() -> Type:
+    """
+        Used to get AppServer class during hot_reload, make sure that the main.py file exists and that the AppServer class name is not changed
+    """
     project_path = getcwd()
 
     if project_path not in sys.path:
@@ -119,6 +142,9 @@ def get_server_handle() -> Type:
 
 
 def open_server(signal: Signal, DEV = False) -> ServerProcess:
+    """
+        Facilitate the opening server of the server, currently only used in development
+    """
     AppServer = get_server_handle()
     app_server = AppServer()
     server = ServerProcess(app_server, DEV=DEV, signal=signal)
@@ -126,6 +152,10 @@ def open_server(signal: Signal, DEV = False) -> ServerProcess:
 
 
 def handle_script(s: str):
+    """
+        Handle the scripts actions
+    """
+
     package = get_package()
     scripts = package["scripts"]
     if s not in scripts:

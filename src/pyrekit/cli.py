@@ -20,6 +20,10 @@ def get_input():
 
 
 def main():
+    """
+        Pyrekit entry point
+    """
+
     entry = get_input()
     if len(entry) != 0:
         if entry[0] == "--setup" and len(entry) > 1:

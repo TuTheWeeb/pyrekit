@@ -5,8 +5,15 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from multiprocessing import Process, Value
 import logging
+import requests
+import base64
+from PIL import Image
+import io
 
 class Signal:
+    """
+        Signal class used to control hot_reload
+    """
     def __init__(self):
         self.updated = Value('b', False)
         self.reload = Value('b', False)
@@ -33,8 +40,40 @@ class Signal:
             else:
                 return True
             
+def convert_image(path: str, quality: int = 100):
+    """
+        Receives a image path and then converts it to a base64 uri
+    """
+
+    data = ""
+    if path.startswith("http://") or path.startswith("https://"):
+        response = requests.get(path)
+        if response.status_code == 200:
+            data = response.content
+        else:
+            raise FileNotFoundError(f"Failed to get image: {path}")
+    else:
+        try:
+            with open(path, "rb") as fd:
+                data = fd.read()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Failed to get image: {path}")
+
+
+    with Image.open(data) as file:
+        file = file.convert("RGB")
+        with io.BytesIO() as buffer:
+            file.save(buffer, format="webp", quality=quality)
+            base64_image = base64.b64encode(buffer.getvalue())
+            base64_string = base64_image.decode("utf-8")
+            new_src = f"data:image/webp;base64,{base64_string}"
+            return new_src
 
 def pack_app(DEV = False) -> str:
+    """
+        Packs the application into a html bundle
+    """
+
     html = read_file("build/index.html")
     bundle = read_file("build/bundle.js")
     css = read_file("build/output.css")
@@ -53,16 +92,27 @@ def pack_app(DEV = False) -> str:
     if link_tag:
         link_tag.decompose()
 
-    # Removes the dev reload if its not development server
-    if not DEV:
-        reload_script = soup.find("script", {"id": "DEV_RELOAD"})
-        reload_script.decompose()
-
     head_tag = soup.head
     if head_tag:
         style_tag = soup.new_tag("style")
         style_tag.string = css
         head_tag.append(style_tag)
+
+    # Build actions
+    if not DEV:
+        # Remove the dev reload
+        reload_script = soup.find("script", {"id": "DEV_RELOAD"})
+        reload_script.decompose()
+
+        # Grab all images and put them in the page itself as a uri, if cant get image, print to the console which image is the problemn and continue
+        images = soup.select("img")
+        for img in images:
+            src = img.get("src")
+            
+            try:
+                img["src"] = convert_image(src)
+            except FileNotFoundError as err:
+                print(err)
 
     bare_string = soup.prettify()
     app_string = bare_string.replace('"""', '\\"\\"\\"')

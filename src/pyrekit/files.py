@@ -172,23 +172,32 @@ def create_function(function_info: Dict[str, str]):
         Creates a typescript function in server.ts for each route in the AppServer
     """
 
-    return f"""
-    function {function_info['name']}() {{
-            ret = {{}};
+    route = "/"+function_info['name'].replace("_", "/")
 
-            fetch('{function_info["name"].replace("_", "/")}')
-            .then(res => res.json())
-            .then(data => ret = data)
-            .catch(err => console.log(err));
-            
-            return ret;
-        }}
-    """
+    return f"""
+export function {function_info['name']}() {{
+  // Fetches data from {route} route and returns the promise
+  return fetch('{route}')
+    .then(res => {{
+      if (!res.ok) {{
+        throw new Error('Network response was not ok');
+      }}
+      return res.json();
+    }})
+    .then(data => data)
+    .catch(err => {{
+      console.error("Fetch error:", err);
+      return "Failed to fetch message.";
+    }});
+}}
+"""
 
 def pack_server_functions() -> str:
+    """
+        Pack all the fetcher functions
+    """
     functions = parse("main.py")
     functions = [create_function(item) for item in functions]
-    print("functions: ", functions)
     server_ts = ""
 
     for item in functions:

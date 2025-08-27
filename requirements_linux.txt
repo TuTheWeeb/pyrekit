@@ -4,3 +4,4 @@ pywebview[qt]
 beautifulsoup4
 flask
 flask-cors
+pillow

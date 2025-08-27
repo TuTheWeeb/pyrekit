@@ -119,7 +119,7 @@ def convert_image(path: str, quality: int = 100):
             new_src = f"data:image/webp;base64,{base64_string}"
             return new_src
 
-def parse(path: str) -> List[Dict[str: str]]:
+def parse(path: str) -> List[Dict[str, str]]:
     """
         Reads a file get the AppServer class and then get all routes -> List[{name: str, return: str, method: str}].
     """
@@ -167,7 +167,7 @@ def parse(path: str) -> List[Dict[str: str]]:
     
     return methods
 
-def create_function(function_info: Dict[str: str]):
+def create_function(function_info: Dict[str, str]):
     """
         Creates a typescript function in server.ts for each route in the AppServer
     """

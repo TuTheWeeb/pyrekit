@@ -1,14 +1,10 @@
-from pyrekit.files import read_file
+from pyrekit.files import read_file, pack_app
 import inspect
-from bs4 import BeautifulSoup
 from flask import Flask, jsonify
 from flask_cors import CORS
 from multiprocessing import Process, Value
 import logging
-import requests
-import base64
-from PIL import Image
-import io
+
 
 class Signal:
     """
@@ -39,85 +35,6 @@ class Signal:
                 return False
             else:
                 return True
-            
-def convert_image(path: str, quality: int = 100):
-    """
-        Receives a image path and then converts it to a base64 uri
-    """
-
-    data = ""
-    if path.startswith("http://") or path.startswith("https://"):
-        response = requests.get(path)
-        if response.status_code == 200:
-            data = response.content
-        else:
-            raise FileNotFoundError(f"Failed to get image: {path}")
-    else:
-        try:
-            with open(path, "rb") as fd:
-                data = fd.read()
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Failed to get image: {path}")
-
-
-    with Image.open(data) as file:
-        file = file.convert("RGB")
-        with io.BytesIO() as buffer:
-            file.save(buffer, format="webp", quality=quality)
-            base64_image = base64.b64encode(buffer.getvalue())
-            base64_string = base64_image.decode("utf-8")
-            new_src = f"data:image/webp;base64,{base64_string}"
-            return new_src
-
-def pack_app(DEV = False) -> str:
-    """
-        Packs the application into a html bundle
-    """
-
-    html = read_file("build/index.html")
-    bundle = read_file("build/bundle.js")
-    css = read_file("build/output.css")
-    soup = BeautifulSoup(html, 'html.parser')
-
-    # Edit the script tag
-    script_tag = soup.find("script", {"id": "bundle"})
-
-    if script_tag:
-        del script_tag["src"]
-        script_tag.string = bundle
-
-    # Removes link tag and add style tag
-    link_tag = soup.find("link", rel="stylesheet")
-
-    if link_tag:
-        link_tag.decompose()
-
-    head_tag = soup.head
-    if head_tag:
-        style_tag = soup.new_tag("style")
-        style_tag.string = css
-        head_tag.append(style_tag)
-
-    # Build actions
-    if not DEV:
-        # Remove the dev reload
-        reload_script = soup.find("script", {"id": "DEV_RELOAD"})
-        reload_script.decompose()
-
-        # Grab all images and put them in the page itself as a uri, if cant get image, print to the console which image is the problemn and continue
-        images = soup.select("img")
-        for img in images:
-            src = img.get("src")
-            
-            try:
-                img["src"] = convert_image(src)
-            except FileNotFoundError as err:
-                print(err)
-
-    bare_string = soup.prettify()
-    app_string = bare_string.replace('"""', '\\"\\"\\"')
-
-    return app_string
 
 class SuppressDevReloadFilter(logging.Filter):
     """A custom filter to suppress log messages for the /dev/reload route."""
@@ -126,7 +43,6 @@ class SuppressDevReloadFilter(logging.Filter):
         # We return False to prevent this specific log record from being processed.
         message = record.getMessage()
         return "/dev/reload" not in message and "WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead." not in message
-
 
 class AppMeta(type):
     """
@@ -167,7 +83,7 @@ class AppMeta(type):
                     rule = '/'
                 else:
                     path_name = item_name
-                    for prefix in ['get_', 'post_', 'put_', 'delete_']:
+                    for prefix in ['GET_', 'POST_', 'PUT_', 'DELETE_']:
                         if path_name.startswith(prefix):
                             path_name = path_name[len(prefix):]
                     
@@ -208,10 +124,10 @@ class Server(MetaclassServer):
     The backbone of the app, inherit from this one to make your server
     create any method with:
         index : special route, for the home "/"
-        get_ : will create a get route.
-        post_ : will create a post route.
-        put_ : will create a put route.
-        delete_ : will create a delete route.
+        GET_ : will create a get route.
+        POST_ : will create a post route.
+        PUT_ : will create a put route.
+        DELETE_ : will create a delete route.
     Any "_" will be interpreted as a "/"
     """
     def __init__(self, port=5000, host="0.0.0.0", DEV = False, **kwargs):

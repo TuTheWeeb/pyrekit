@@ -1,5 +1,5 @@
-from pyrekit.files import create_files, read_file
-from pyrekit.server import Signal, pack_app, ServerProcess
+from pyrekit.files import create_files, read_file, pack_app, pack_server_functions
+from pyrekit.server import Signal, ServerProcess
 from typing import Dict, Type
 from json import loads, dumps
 import time
@@ -161,6 +161,10 @@ def handle_script(s: str):
     if s not in scripts:
         print("This command does not exists!")
         return
+    
+    if s == "build" or s == "run":
+        pack_server_functions()
+
     command(f"npm run {s}", hide=True)
 
     if s == "build":

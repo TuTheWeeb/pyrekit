@@ -147,6 +147,7 @@ def open_server(signal: Signal, DEV = False) -> ServerProcess:
     """
     AppServer = get_server_handle()
     app_server = AppServer()
+    pack_server_functions()
     server = ServerProcess(app_server, DEV=DEV, signal=signal)
     return server
 
@@ -195,9 +196,11 @@ def handle_script(s: str):
         
         try:
             while True:
+                if signal.get_updated() or server_signal.get_updated():
+                    command(f"npm run {s}", hide=True)
+
                 if signal.get_updated():
                     print("Change detected in the frontend, recompiling...")
-                    command(f"npm run {s}", hide=True)
                     signal.flip_updated()
 
                     if signal.get_reload() is False:

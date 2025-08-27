@@ -1,3 +1,5 @@
 src
 dist
+.venv
+.gitignore
 upload.sh

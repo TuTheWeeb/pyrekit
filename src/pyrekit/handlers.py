@@ -1,4 +1,4 @@
-from pyrekit.file_handler import create_files, read_file
+from pyrekit.files import create_files, read_file
 from pyrekit.server import Signal, pack_app, ServerProcess
 from typing import Dict, Type
 from json import loads, dumps

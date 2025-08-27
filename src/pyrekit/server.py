@@ -1,4 +1,4 @@
-from pyrekit.file_handler import read_file
+from pyrekit.files import read_file
 import inspect
 from bs4 import BeautifulSoup
 from flask import Flask, jsonify

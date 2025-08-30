@@ -20,7 +20,7 @@ root.render(<App />);
 SERVER_TS = """"""
 
 APP_TSX = """import React from 'react';
-import {} from 'server.ts'
+import {} from './server.ts'
 
 export function App() {
     return <h1>Hello from PyReact 👋</h1>;
@@ -67,7 +67,8 @@ export default {
 INPUT_CSS = """@import "tailwindcss";"""
 
 MAIN_PY = """from flask import jsonify
-from pyrekit.server import Server, ServerProcess, pack_app
+from pyrekit.server import Server, ServerProcess
+from pyrekit.files import pack_app
 import webview
 
 # don't rename this class
@@ -83,7 +84,7 @@ if __name__ == "__main__":
     server_proc = ServerProcess(server=app_server)
     server_proc.start()
     
-    webview.create_window("AppServer", f"http://{HOST}:{PORT}/")
+    webview.create_window("AppWindow", f"http://{HOST}:{PORT}/")
     webview.start()
 
     server_proc.close()"""

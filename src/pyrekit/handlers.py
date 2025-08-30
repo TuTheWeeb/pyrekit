@@ -146,8 +146,7 @@ def open_server(signal: Signal, DEV = False) -> ServerProcess:
         Facilitate the opening server of the server, currently only used in development
     """
     AppServer = get_server_handle()
-    app_server = AppServer()
-    pack_server_functions()
+    app_server = AppServer(DEV=DEV)
     server = ServerProcess(app_server, DEV=DEV, signal=signal)
     return server
 
@@ -197,7 +196,9 @@ def handle_script(s: str):
         try:
             while True:
                 if signal.get_updated() or server_signal.get_updated():
+                    pack_server_functions()
                     command(f"npm run {s}", hide=True)
+                    
 
                 if signal.get_updated():
                     print("Change detected in the frontend, recompiling...")

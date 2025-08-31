@@ -60,13 +60,13 @@ class AppMeta(type):
         for item_name, item_value in attrs.items():
             if callable(item_value) and not item_name.startswith('_'):
                 http_methods = []
-                if item_name.lower().startswith('get_'):
+                if item_name.startswith('GET_'):
                     http_methods.append('GET')
-                elif item_name.lower().startswith('post_'):
+                elif item_name.startswith('POST_'):
                     http_methods.append('POST')
-                elif item_name.lower().startswith('put_'):
+                elif item_name.startswith('PUT_'):
                     http_methods.append('PUT')
-                elif item_name.lower().startswith('delete_'):
+                elif item_name.startswith('DELETE_'):
                     http_methods.append('DELETE')
 
                 # Makes sure all the methods that are not routes, are taken out                
@@ -94,7 +94,7 @@ class AppMeta(type):
 
                 options = {'methods': http_methods}
                 routes_to_register.append((rule, item_name, options))
-                # print(f"Discovered route: {rule} ({options['methods']}) -> {name}.{item_name}")
+                print(f"Discovered route: {rule} ({options['methods']}) -> {name}.{item_name}")
 
         if not routes_to_register:
             return
@@ -147,7 +147,7 @@ class Server(MetaclassServer):
         print(f"Server started at http://{self.host}/{self.port}")
         self.run(port=self.port, host=self.host)
     
-    def get_dev_reload(self):
+    def GET_dev_reload(self):
         if self.signal != None:
             ret = self.signal.get_reload()
             if self.signal.get_reload() is True:

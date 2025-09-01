@@ -20,7 +20,7 @@ root.render(<App />);
 SERVER_TS = """"""
 
 APP_TSX = """import React from 'react';
-import {} from './server.ts'
+import {} from './server'
 
 export function App() {
     return <h1>Hello from PyReact 👋</h1>;
@@ -174,31 +174,86 @@ def create_function(function_info: Dict[str, str]):
     """
 
     route = "/"+function_info['name'].replace("_", "/")
+    method = function_info['method']
 
-    return f"""
+    if method == "get":
+        return f"""
 export function {function_info['name']}() {{
-  // Fetches data from {route} route and returns the promise
+  // Fetches data from the '{route}' endpoint.
   return fetch('{route}')
     .then(res => {{
       if (!res.ok) {{
-        throw new Error('Network response was not ok');
+        throw new Error(`HTTP error! Status: ${{res.status}}`);
       }}
       return res.json();
     }})
-    .then(data => data)
     .catch(err => {{
       console.error("Fetch error:", err);
-      return "Failed to fetch message.";
+      throw err; // Re-throw the error to be handled by the caller
     }});
 }}
 """
 
-def pack_server_functions() -> str:
+    elif method in ["post", "put"]:
+        # POST and PUT requests both send data in the request body.
+        method_upper = method.upper()
+        return f"""
+export function {function_info['name']}(data: any) {{
+  // Sends a {method_upper} request to the '{route}' endpoint.
+  return fetch('{route}', {{
+    method: '{method_upper}',
+    headers: {{
+      'Content-Type': 'application/json',
+    }},
+    body: JSON.stringify(data),
+  }})
+    .then(res => {{
+      if (!res.ok) {{
+        throw new Error(`HTTP error! Status: ${{res.status}}`);
+      }}
+      return res.json();
+    }})
+    .catch(err => {{
+      console.error("Fetch error:", err);
+      throw err; // Re-throw the error to be handled by the caller
+    }});
+}}
+"""
+
+    elif method == "delete":
+        return f"""
+export function {function_info['name']}(id: string | number) {{
+  // Sends a DELETE request to the '{route}/{{id}}' endpoint.
+  return fetch(`{route}/${{id}}`, {{
+    method: 'DELETE',
+  }})
+    .then(res => {{
+      if (!res.ok) {{
+        throw new Error(`HTTP error! Status: ${{res.status}}`);
+      }}
+      return res.json();
+    }})
+    .catch(err => {{
+      console.error("Fetch error:", err);
+      throw err; // Re-throw the error to be handled by the caller
+    }});
+}}
+"""
+    
+    # Return an empty string if the method is not supported
+    return ""
+
+
+def pack_server_functions():
     """
         Pack all the fetcher functions
     """
-    functions = parse("main.py")
-    functions = [create_function(item) for item in functions]
+    functions_info = parse("main.py")
+    functions = [create_function(item) for item in functions_info]
+    
+    for f in functions_info:
+        print(f)
+
     server_ts = ""
 
     for item in functions:

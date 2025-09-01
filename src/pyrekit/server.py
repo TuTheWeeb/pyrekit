@@ -46,70 +46,122 @@ class SuppressDevReloadFilter(logging.Filter):
 
 class AppMeta(type):
     """
-    Metaclass to automatically discover and register routes from class methods.
-    
-    This metaclass uses a wrapping pattern. It waits for the class to be created,
-    then wraps its __init__ method. The new __init__ first calls the original
-    __init__ (ensuring the Flask app is properly set up) and then adds the
-    discovered URL rules.
+    Metaclass to automatically discover and register Flask routes from class methods.
+
+    This metaclass inspects the methods of a class it's applied to. If a method
+    name follows a specific naming convention (e.g., starts with 'GET_', 'POST_'),
+    it's automatically converted into a Flask URL rule.
+
+    Features:
+    - Naming Convention: Method names like `GET_user_profile` are mapped to a
+      `GET` request at the URL `/user/profile`.
+    - Automatic Parameter Handling: Method arguments are converted into URL
+      parameters. For example, `def GET_user(self, user_id):` becomes a route
+      at `/user/<user_id>`.
+    - Typed Parameters: Python type hints are used to create typed URL converters.
+      For example, `def GET_user(self, user_id: int):` becomes `/user/<int:user_id>`.
+    - Special 'index' method: A method named `index` is automatically mapped to
+      the root URL '/' for GET and POST requests.
     """
     def __init__(cls, name, bases, attrs):
         super().__init__(name, bases, attrs)
 
+        # A mapping of method prefixes to their corresponding HTTP verbs.
+        HTTP_PREFIX_MAP = {
+            'GET_': 'GET',
+            'POST_': 'POST',
+            'PUT_': 'PUT',
+            'DELETE_': 'DELETE',
+        }
+        
+        # A mapping of Python types to Flask's URL converters.
+        TYPE_CONVERTER_MAP = {
+            int: 'int',
+            float: 'float',
+            str: 'string',
+        }
+
         routes_to_register = []
+
+        # Iterate over all attributes of the class to find methods that look like routes.
         for item_name, item_value in attrs.items():
-            if callable(item_value) and not item_name.startswith('_'):
-                http_methods = []
-                if item_name.startswith('GET_'):
-                    http_methods.append('GET')
-                elif item_name.startswith('POST_'):
-                    http_methods.append('POST')
-                elif item_name.startswith('PUT_'):
-                    http_methods.append('PUT')
-                elif item_name.startswith('DELETE_'):
-                    http_methods.append('DELETE')
+            if not callable(item_value) or item_name.startswith('_'):
+                continue
 
-                # Makes sure all the methods that are not routes, are taken out                
-                if not http_methods and item_name != 'index':
+            # Handle index page
+            if item_name == 'index':
+                rule = '/'
+                http_methods = ['GET', 'POST']
+                view_name = 'index'
+                routes_to_register.append((rule, view_name, {'methods': http_methods}))
+                print(f"Discovered special route: {rule} ({http_methods}) -> {name}.{view_name}")
+                continue
+
+            # Handle all other routes based on prefixes
+            found_method = None
+            path_prefix = None
+            
+            for prefix, method in HTTP_PREFIX_MAP.items():
+                if item_name.startswith(prefix):
+                    found_method = method
+                    path_prefix = prefix
+                    break # Stop after finding the first matching prefix
+
+            if not found_method:
+                continue # Skip methods that don't match naming convention
+
+            # Construct the base URL rule from the method name.
+            # 'GET_user_profile' becomes '/user/profile'
+            path_name = item_name[len(path_prefix):]
+            rule = f"/{path_name.replace('_', '/')}"
+
+            # Inspect the method's signature to find its parameters.
+            sig = inspect.signature(item_value)
+            
+            # Add parameters to the URL rule.
+            for param in sig.parameters.values():
+                if param.name == 'self':
                     continue
-
-                if item_name == 'index':
-                    http_methods = ['GET', 'POST']
-
-                sig = inspect.signature(item_value)
-                params = [p for p in sig.parameters if p != 'self']
                 
-                if item_name == 'index':
-                    rule = '/'
+                # Check for type hints and map them to Flask converters.
+                converter = TYPE_CONVERTER_MAP.get(param.annotation, 'string')
+                
+                # For default string type, we don't need to specify it.
+                if converter == 'string':
+                    rule += f"/<{param.name}>"
                 else:
-                    path_name = item_name
-                    for prefix in ['GET_', 'POST_', 'PUT_', 'DELETE_']:
-                        if path_name.startswith(prefix):
-                            path_name = path_name[len(prefix):]
-                    
-                    rule = f"/{path_name.replace('_', '/')}"
+                    rule += f"/<{converter}:{param.name}>"
 
-                for param in params:
-                    rule += f"/<{param}>"
+            # Prepare the options for Flask's add_url_rule.
+            options = {'methods': [found_method]}
+            routes_to_register.append((rule, item_name, options))
+            print(f"Discovered route: {rule} ({options['methods']}) -> {name}.{item_name}")
 
-                options = {'methods': http_methods}
-                routes_to_register.append((rule, item_name, options))
-                print(f"Discovered route: {rule} ({options['methods']}) -> {name}.{item_name}")
-
+        # If no routes were found, there's nothing more to do.
         if not routes_to_register:
             return
 
+        # --- Wrap the class's __init__ to register the routes after initialization ---
         original_init = cls.__init__
 
         def wrapped_init(self, *args, **kwargs):
+            # Call the original __init__ first to ensure the object is set up.
+            # In the case of Flask, this sets up the app instance.
             original_init(self, *args, **kwargs)
             
+            # Now, add all the discovered URL rules to the instance.
             for rule, view_name, options in routes_to_register:
+                # Get the actual method from the instance (self).
                 view_func = getattr(self, view_name)
-                current_options = options.copy()
-                endpoint = current_options.pop('endpoint', view_name)
-                self.add_url_rule(rule, endpoint=endpoint, view_func=view_func, **current_options)
+                
+                # Use the method name as the endpoint name by default.
+                endpoint = options.pop('endpoint', view_name)
+                
+                # Add the rule to the Flask app instance.
+                self.add_url_rule(rule, endpoint=endpoint, view_func=view_func, **options)
+                print(f"Registered route: {rule} -> {self.__class__.__name__}.{view_name}")
 
+        # Replace the class's original __init__ with wrapped version.
         cls.__init__ = wrapped_init
 
 class MetaclassServer(Flask, metaclass=AppMeta):

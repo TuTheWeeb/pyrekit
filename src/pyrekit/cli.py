@@ -1,6 +1,6 @@
 import sys
-from pyrekit.handlers import setup, handle_script, list_scripts
-
+from pyrekit.handlers import setup, handle_script
+from pyrekit.files import list_scripts
 
 HELP_STRING = """Choose one of the flags to use pyreact:
     --setup <PROJ_NAME>: To setup the project from scratch

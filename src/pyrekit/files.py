@@ -4,7 +4,10 @@ from bs4 import BeautifulSoup
 import requests
 import base64
 from PIL import Image
+from os import mkdir
 import io
+from json import loads, dumps
+
 
 # File definitions
 
@@ -68,7 +71,7 @@ INPUT_CSS = """@import "tailwindcss";"""
 
 MAIN_PY = """from flask import jsonify
 from pyrekit.server import Server, ServerProcess
-from pyrekit.files import pack_app
+from pyrekit.files import pack_app, project_name
 import webview
 
 # don't rename this class
@@ -84,7 +87,7 @@ if __name__ == "__main__":
     server_proc = ServerProcess(server=app_server)
     server_proc.start()
     
-    webview.create_window("AppWindow", f"http://{HOST}:{PORT}/")
+    webview.create_window(project_name(), f"http://{HOST}:{PORT}/")
     webview.start()
 
     server_proc.close()"""
@@ -313,7 +316,32 @@ def pack_app(DEV = False) -> str:
 
     return app_string
 
-def create_files(AppName: str = "PyReact"):
+def get_package() -> Dict[str, str]:
+    """
+        Gets package.json or close the entire programn if not found
+    """
+    json_str = read_file("package.json")
+    if len(json_str) != 0:
+        return loads(json_str)
+    else:
+        print("package.json not found, maybe you did not setup the project!")
+        exit(0)
+
+def project_name() -> str:
+    package = get_package()
+    return package['project-name']
+
+def create_base_dirs() -> None:
+    """
+        Check if the base dirs exists if not create them
+    """
+    try:
+        mkdir("src")
+        mkdir("build")
+    except FileExistsError:
+        print("src and build Folders already exists!")
+
+def create_files(AppName: str = "PyReact") -> None:
     """
     Creates base files for the app
     """
@@ -339,6 +367,39 @@ def create_files(AppName: str = "PyReact"):
     with open("main.py", "w") as fd:
         fd.write(MAIN_PY)
 
+    with open("package.json", "w") as fd:
+        fd.write(create_package(AppName))
+
+
+def create_package(AppName: str) -> str:
+    """
+        Creates a base package.json string
+    """
+
+    package = {
+        "project-name": AppName,
+        "compilerOptions": {
+            "target": "ES6",
+            "module": "ESNext",
+            "jsx": "react-jsx",
+            "strict": True,
+            "moduleResolution": "node",
+            "esModuleInterop": True
+        },
+        "include": ["src"],
+        "scripts": {
+            "tailwindcss_dev": "npx @tailwindcss/cli -i ./src/input.css -o ./build/output.css",
+            "tailwindcss": "npx @tailwindcss/cli -i ./src/input.css -o ./build/output.css -m",
+            "esbuild_dev": "npx esbuild src/index.tsx --sourcemap --bundle --outfile=build/bundle.js --loader:.tsx=tsx",
+            "esbuild": "npx esbuild src/index.tsx --minify --bundle --outfile=build/bundle.js --loader:.tsx=tsx",
+            "build": "npm run tailwindcss && npm run esbuild",
+            "run": "npm run tailwindcss_dev && npm run esbuild_dev"
+        }
+    }
+
+    data = dumps(package, indent=4)
+    return data
+
 
 def read_file(path: str) -> str:
     """
@@ -351,3 +412,13 @@ def read_file(path: str) -> str:
     except FileNotFoundError:
         print("File not Found! ", path)
         return ""
+    
+def list_scripts():
+    """
+    Lists the scripts available in package.json
+    """
+    package = get_package()
+    scripts = package["scripts"].keys()
+    print("Found", len(scripts), "scripts:")
+    for s in scripts:
+        print("\b - ", s)

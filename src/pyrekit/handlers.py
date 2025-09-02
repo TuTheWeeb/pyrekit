@@ -1,14 +1,13 @@
-from pyrekit.files import create_files, read_file, pack_app, pack_server_functions
+from pyrekit.files import get_package, create_files, create_base_dirs, pack_app, pack_server_functions, project_name
 from pyrekit.server import Signal, ServerProcess
-from typing import Dict, Type
-from json import loads, dumps
+from typing import Type
 import time
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 import importlib
 import sys
 from subprocess import run
-from os import mkdir, getcwd
+from os import getcwd
 
 
 class EventHandler(FileSystemEventHandler):
@@ -55,61 +54,23 @@ def check_modifications(sig: Signal, path: str = "src/"):
         observer.stop()
         observer.join()
 
-
-def get_package() -> Dict[str, str]:
-    """
-        Gets package.json or close the entire programn if not found
-    """
-    json_str = read_file("package.json")
-    if len(json_str) != 0:
-        return loads(json_str)
-    else:
-        print("package.json not found, maybe you did not setup the project!")
-        exit(0)
-
-
 def command(c: str, hide: bool = False):
     """
         Runs a command
     """
     run(c.split(" "), capture_output=hide)
 
-
 def setup(AppName: str = "PyReact"):
     """
         Setups the project, creating a package.json and creating the src, build dirs, and all the files
     """
-    try:
-        mkdir("src")
-        mkdir("build")
-    except FileExistsError:
-        print("src and build Folders already exists!")
+    # Check if the base dirs already exists or creates them
+    create_base_dirs()
 
+    # Creates all the needed files
     create_files(AppName)
-
-    package = {
-        "compilerOptions": {
-            "target": "ES6",
-            "module": "ESNext",
-            "jsx": "react-jsx",
-            "strict": True,
-            "moduleResolution": "node",
-            "esModuleInterop": True
-        },
-        "include": ["src"],
-        "scripts": {
-            "tailwindcss_dev": "npx @tailwindcss/cli -i ./src/input.css -o ./build/output.css",
-            "tailwindcss": "npx @tailwindcss/cli -i ./src/input.css -o ./build/output.css -m",
-            "esbuild_dev": "npx esbuild src/index.tsx --sourcemap --bundle --outfile=build/bundle.js --loader:.tsx=tsx",
-            "esbuild": "npx esbuild src/index.tsx --minify --bundle --outfile=build/bundle.js --loader:.tsx=tsx",
-            "build": "npm run tailwindcss && npm run esbuild",
-            "run": "npm run tailwindcss_dev && npm run esbuild_dev"
-        }
-    }
-
-    data = dumps(package)
-    with open("package.json", "w") as fd:
-        fd.write(data)
+    
+    # Run the setup install
     command("npm install react react-dom esbuild tailwindcss @tailwindcss/cli")
 
 def get_server_handle() -> Type:
@@ -150,6 +111,9 @@ def open_server(signal: Signal, DEV = False) -> ServerProcess:
     server = ServerProcess(app_server, DEV=DEV, signal=signal)
     return server
 
+def bundler(script: str):
+    pack_server_functions()
+    command(f"npm run {script}", hide=True)
 
 def handle_script(s: str):
     """
@@ -162,10 +126,10 @@ def handle_script(s: str):
         print("This command does not exists!")
         return
     
-    if s == "build" or s == "run":
-        pack_server_functions()
-
     command(f"npm run {s}", hide=True)
+
+    if s == "build" or s == "run":
+        bundler(s)
 
     if s == "build":
         app_string = pack_app()
@@ -173,9 +137,11 @@ def handle_script(s: str):
         server = ""
         with open("main.py", "r") as fd:
             server = fd.read()
+            server = server.replace('project_name()', f'"{project_name()}"')
+            server = server.replace('pack_app(self.DEV)', f'r"""{app_string}"""')
 
         with open("app.py", "w", encoding="utf-8") as fd:
-            fd.write(server.replace('pack_app(self.DEV)', f'r"""{app_string}"""'))
+            fd.write(server)
 
     elif s == "run":
         server = None
@@ -185,6 +151,7 @@ def handle_script(s: str):
 
         try:
             server = open_server(signal=signal, DEV=True)
+            bundler(s)
         except ImportError as error:
             print(error)
             print("Closing...")
@@ -196,9 +163,7 @@ def handle_script(s: str):
         try:
             while True:
                 if signal.get_updated() or server_signal.get_updated():
-                    pack_server_functions()
-                    command(f"npm run {s}", hide=True)
-                    
+                    bundler(s)
 
                 if signal.get_updated():
                     print("Change detected in the frontend, recompiling...")
@@ -232,12 +197,4 @@ def handle_script(s: str):
             
 
 
-def list_scripts():
-    """
-    Lists the scripts available in package.json
-    """
-    package = get_package()
-    scripts = package["scripts"].keys()
-    print("Found", len(scripts), "scripts:")
-    for s in scripts:
-        print("\b - ", s)
+

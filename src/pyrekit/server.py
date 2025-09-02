@@ -1,4 +1,3 @@
-from pyrekit.files import read_file, pack_app
 import inspect
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -135,7 +134,7 @@ class AppMeta(type):
             # Prepare the options for Flask's add_url_rule.
             options = {'methods': [found_method]}
             routes_to_register.append((rule, item_name, options))
-            print(f"Discovered route: {rule} ({options['methods']}) -> {name}.{item_name}")
+            # print(f"Discovered route: {rule} ({options['methods']}) -> {name}.{item_name}")
 
         # If no routes were found, there's nothing more to do.
         if not routes_to_register:
@@ -159,7 +158,7 @@ class AppMeta(type):
                 
                 # Add the rule to the Flask app instance.
                 self.add_url_rule(rule, endpoint=endpoint, view_func=view_func, **options)
-                print(f"Registered route: {rule} -> {self.__class__.__name__}.{view_name}")
+                # print(f"Registered route: {rule} -> {self.__class__.__name__}.{view_name}")
 
         # Replace the class's original __init__ with wrapped version.
         cls.__init__ = wrapped_init

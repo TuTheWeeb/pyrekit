@@ -4,6 +4,11 @@ A simple and powerful tool for building desktop applications using Python for th
 
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/pyrekit?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=BRIGHTGREEN&left_text=Total+downloads)](https://pepy.tech/projects/pyrekit)
 
+## TODOs:
+- Make it work without packing, so that it can be used as a server without a webview.
+- Make it work over https.
+- Make requests all asynchronous.
+
 ## Prerequisites
 
 Before you can use Pyrekit, you must have the following software installed:

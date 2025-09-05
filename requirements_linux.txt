@@ -5,3 +5,5 @@ beautifulsoup4
 flask
 flask-cors
 pillow
+asgiref
+uvicorn

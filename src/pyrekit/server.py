@@ -1,8 +1,11 @@
 import inspect
+import uvicorn
+from asgiref.wsgi import WsgiToAsgi
 from flask import Flask, jsonify
 from flask_cors import CORS
 from multiprocessing import Process, Value
 import logging
+from functools import wraps
 
 
 class Signal:
@@ -35,13 +38,17 @@ class Signal:
             else:
                 return True
 
-class SuppressDevReloadFilter(logging.Filter):
-    """A custom filter to suppress log messages for the /dev/reload route."""
-    def filter(self, record):
-        # The getMessage() method returns the final log string.
-        # We return False to prevent this specific log record from being processed.
+class UvicornLogFilter(logging.Filter):
+    """
+    A custom log filter to suppress /dev/reload logs route, since its a development route only
+    """
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Get the log message
         message = record.getMessage()
-        return "/dev/reload" not in message and "WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead." not in message
+        # Check if the message is an access log for the /dev/reload endpoint
+        if "/dev/reload" in message:
+            return False
+        return True
 
 class AppMeta(type):
     """
@@ -65,7 +72,6 @@ class AppMeta(type):
     def __init__(cls, name, bases, attrs):
         super().__init__(name, bases, attrs)
 
-        # A mapping of method prefixes to their corresponding HTTP verbs.
         HTTP_PREFIX_MAP = {
             'GET_': 'GET',
             'POST_': 'POST',
@@ -73,7 +79,6 @@ class AppMeta(type):
             'DELETE_': 'DELETE',
         }
         
-        # A mapping of Python types to Flask's URL converters.
         TYPE_CONVERTER_MAP = {
             int: 'int',
             float: 'float',
@@ -82,7 +87,6 @@ class AppMeta(type):
 
         routes_to_register = []
 
-        # Iterate over all attributes of the class to find methods that look like routes.
         for item_name, item_value in attrs.items():
             if not callable(item_value) or item_name.startswith('_'):
                 continue
@@ -93,7 +97,6 @@ class AppMeta(type):
                 http_methods = ['GET', 'POST']
                 view_name = 'index'
                 routes_to_register.append((rule, view_name, {'methods': http_methods}))
-                print(f"Discovered special route: {rule} ({http_methods}) -> {name}.{view_name}")
                 continue
 
             # Handle all other routes based on prefixes
@@ -104,63 +107,45 @@ class AppMeta(type):
                 if item_name.startswith(prefix):
                     found_method = method
                     path_prefix = prefix
-                    break # Stop after finding the first matching prefix
+                    break
 
             if not found_method:
-                continue # Skip methods that don't match naming convention
+                continue
 
-            # Construct the base URL rule from the method name.
-            # 'GET_user_profile' becomes '/user/profile'
             path_name = item_name[len(path_prefix):]
             rule = f"/{path_name.replace('_', '/')}"
 
-            # Inspect the method's signature to find its parameters.
             sig = inspect.signature(item_value)
             
-            # Add parameters to the URL rule.
             for param in sig.parameters.values():
                 if param.name == 'self':
                     continue
                 
-                # Check for type hints and map them to Flask converters.
                 converter = TYPE_CONVERTER_MAP.get(param.annotation, 'string')
                 
-                # For default string type, we don't need to specify it.
                 if converter == 'string':
                     rule += f"/<{param.name}>"
                 else:
                     rule += f"/<{converter}:{param.name}>"
 
-            # Prepare the options for Flask's add_url_rule.
             options = {'methods': [found_method]}
             routes_to_register.append((rule, item_name, options))
-            # print(f"Discovered route: {rule} ({options['methods']}) -> {name}.{item_name}")
 
-        # If no routes were found, there's nothing more to do.
         if not routes_to_register:
             return
 
-        # --- Wrap the class's __init__ to register the routes after initialization ---
         original_init = cls.__init__
 
+        @wraps(original_init)
         def wrapped_init(self, *args, **kwargs):
-            # Call the original __init__ first to ensure the object is set up.
-            # In the case of Flask, this sets up the app instance.
             original_init(self, *args, **kwargs)
             
-            # Now, add all the discovered URL rules to the instance.
             for rule, view_name, options in routes_to_register:
-                # Get the actual method from the instance (self).
                 view_func = getattr(self, view_name)
-                
-                # Use the method name as the endpoint name by default.
                 endpoint = options.pop('endpoint', view_name)
                 
-                # Add the rule to the Flask app instance.
                 self.add_url_rule(rule, endpoint=endpoint, view_func=view_func, **options)
-                # print(f"Registered route: {rule} -> {self.__class__.__name__}.{view_name}")
 
-        # Replace the class's original __init__ with wrapped version.
         cls.__init__ = wrapped_init
 
 class MetaclassServer(Flask, metaclass=AppMeta):
@@ -184,8 +169,6 @@ class Server(MetaclassServer):
     def __init__(self, port=5000, host="0.0.0.0", DEV = False, **kwargs):
         super().__init__(import_name="pyreact internal server", **kwargs)
         CORS(self)
-        log = logging.getLogger('werkzeug')
-        log.addFilter(SuppressDevReloadFilter())
         self.port = port
         self.host = host
         self.signal: Signal = None
@@ -193,12 +176,8 @@ class Server(MetaclassServer):
 
     def set_Signal(self, signal: Signal):
         self.signal = signal
-
-    def start(self):
-        print(f"Server started at http://{self.host}/{self.port}")
-        self.run(port=self.port, host=self.host)
     
-    def GET_dev_reload(self):
+    async def GET_dev_reload(self):
         if self.signal != None:
             ret = self.signal.get_reload()
             if self.signal.get_reload() is True:
@@ -213,14 +192,36 @@ class ServerProcess(Process):
     """
     def __init__(self, server: Server, signal: Signal = None, DEV = False):
         self.server: Server = server
-        super().__init__(target=self.server.start)
         self.DEV = DEV
         if self.DEV:
             self.signal = signal
             if self.server.signal is None:
                 self.server.set_Signal(self.signal)
 
+        super().__init__(target=self.run)
+        
+    def run(self):
+        """
+        This method is executed when the process starts.
+        It wraps the Flask WSGI app into an ASGI app and runs it with Uvicorn.
+        """
+        print(f"Starting server at http://{self.server.host}:{self.server.port}")
+
+        # Apply the log filter
+        log_filter = UvicornLogFilter()
+        logging.getLogger("uvicorn").addFilter(log_filter)
+        logging.getLogger("uvicorn.access").addFilter(log_filter)
+
+        asgi_app = WsgiToAsgi(self.server)
+
+        uvicorn.run(
+            asgi_app,
+            host=self.server.host,
+            port=self.server.port,
+            log_level="info"
+        )
 
     def close(self):
-        self.kill()
+        if self.is_alive():
+            self.terminate()
         self.join()

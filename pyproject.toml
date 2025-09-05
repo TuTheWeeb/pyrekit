@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyrekit"
-version = "0.1.15"
+version = "0.1.17"
 authors = [
   { name = "TuTheWeeb", email = "eduardo.tuler@gmail.com" },
 ]
@@ -25,6 +25,8 @@ dependencies = [
     "pywebview>=4.0.0",
     "requests",
     "pillow",
+    "uvicorn",
+    "asgiref"
 ]
 
 [project.urls]

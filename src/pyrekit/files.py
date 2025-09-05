@@ -76,7 +76,7 @@ import webview
 
 # don't rename this class
 class AppServer(Server):
-    def index(self):
+    async def index(self):
         return pack_app(self.DEV)
 
 if __name__ == "__main__":

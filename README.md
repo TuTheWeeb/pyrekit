@@ -1,4 +1,4 @@
-# Pyrekit - Python and react toolkit
+# Pyrekit - Python and react toolkit - WIP
 
 A simple and powerful tool for building desktop applications using Python for the backend and React/TailwindCSS for the frontend, it includes pywebview to make desktop apps. Features include a development server with hot-reloading for both backend and frontend, and a simple build process.
 
@@ -7,7 +7,8 @@ A simple and powerful tool for building desktop applications using Python for th
 ## TODOs:
 - Make it work without packing, so that it can be used as a server without a webview.
 - Make it work over https.
-- Make requests all asynchronous.
+- ~~Make all requests asynchronous.~~ (DONE)
+- Solve: It seems its not hot reloading and not updating the server.ts with the routes handlers
 
 ## Prerequisites
 

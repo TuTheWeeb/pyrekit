@@ -72,6 +72,7 @@ def setup(AppName: str = "PyReact"):
     
     # Run the setup install
     command("npm install react react-dom esbuild tailwindcss @tailwindcss/cli")
+    command("npm i --save-dev @types/react")
 
 def get_server_handle() -> Type:
     """
@@ -151,7 +152,6 @@ def handle_script(s: str):
 
         try:
             server = open_server(signal=signal, DEV=True)
-            bundler(s)
         except ImportError as error:
             print(error)
             print("Closing...")
@@ -163,6 +163,7 @@ def handle_script(s: str):
         try:
             while True:
                 if signal.get_updated() or server_signal.get_updated():
+                    print("Bundlered now")
                     bundler(s)
 
                 if signal.get_updated():

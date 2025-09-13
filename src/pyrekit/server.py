@@ -178,7 +178,7 @@ class Server(MetaclassServer):
         self.signal = signal
     
     async def GET_dev_reload(self):
-        if self.signal != None:
+        if self.DEV:
             ret = self.signal.get_reload()
             if self.signal.get_reload() is True:
                 self.signal.flip_reload()

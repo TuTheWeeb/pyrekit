@@ -7,7 +7,7 @@ A simple and powerful tool for building desktop applications using Python for th
 ## TODOs:
 - Make it work without packing, so that it can be used as a server without a webview.
 - Make it work over https.
-- It seems the routes are not being detected when using async
+- ~~ It seems the routes are not being detected when using async ~~ (DONE)
 
 ## Prerequisites
 

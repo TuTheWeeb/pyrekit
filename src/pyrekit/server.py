@@ -112,7 +112,7 @@ class AppMeta(type):
             if not found_method:
                 continue
 
-            path_name = item_name[len(path_prefix):]
+            path_name = item_name[len(path_prefix if type(path_prefix) is str else ""):]
             rule = f"/{path_name.replace('_', '/')}"
 
             sig = inspect.signature(item_value)
@@ -130,6 +130,7 @@ class AppMeta(type):
 
             options = {'methods': [found_method]}
             routes_to_register.append((rule, item_name, options))
+            print(routes_to_register[-1])
 
         if not routes_to_register:
             return
@@ -146,7 +147,7 @@ class AppMeta(type):
                 
                 self.add_url_rule(rule, endpoint=endpoint, view_func=view_func, **options)
 
-        cls.__init__ = wrapped_init
+        cls.__init__ = wrapped_init # type: ignore
 
 class MetaclassServer(Flask, metaclass=AppMeta):
     """
@@ -171,7 +172,7 @@ class Server(MetaclassServer):
         CORS(self)
         self.port = port
         self.host = host
-        self.signal: Signal = None
+        self.signal: Signal = None # type: ignore
         self.DEV = DEV
 
     def set_Signal(self, signal: Signal):
@@ -190,7 +191,7 @@ class ServerProcess(Process):
     """
     Just serve as server manager, it manages the server
     """
-    def __init__(self, server: Server, signal: Signal = None, DEV = False):
+    def __init__(self, server: Server, signal: Signal = None, DEV = False): # type: ignore
         self.server: Server = server
         self.DEV = DEV
         if self.DEV:

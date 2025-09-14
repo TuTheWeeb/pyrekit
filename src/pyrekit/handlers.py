@@ -88,7 +88,7 @@ def get_server_handle() -> Type:
         if 'main' in sys.modules:
             importlib.reload(sys.modules['main'])
 
-        from main import AppServer
+        from main import AppServer # type: ignore
         return AppServer
 
     except ImportError:
@@ -113,7 +113,6 @@ def open_server(signal: Signal, DEV = False) -> ServerProcess:
     return server
 
 def bundler(script: str):
-    pack_server_functions()
     command(f"npm run {script}", hide=True)
 
 def handle_script(s: str):
@@ -130,6 +129,7 @@ def handle_script(s: str):
     command(f"npm run {s}", hide=True)
 
     if s == "build" or s == "run":
+        pack_server_functions()
         bundler(s)
 
     if s == "build":
@@ -164,6 +164,7 @@ def handle_script(s: str):
             while True:
                 if signal.get_updated() or server_signal.get_updated():
                     print("Bundlered now")
+                    pack_server_functions()
                     bundler(s)
 
                 if signal.get_updated():

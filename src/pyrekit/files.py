@@ -1,5 +1,5 @@
 import ast
-from typing import Dict, List
+from typing import Dict, Iterable, List
 from bs4 import BeautifulSoup
 import requests
 import base64
@@ -8,6 +8,8 @@ from os import mkdir
 import io
 from json import loads, dumps
 
+Args = Dict[str, str]
+FunctionInfo = Dict[str, str | list[Args]]
 
 # File definitions
 
@@ -123,9 +125,9 @@ def convert_image(path: str, quality: int = 100):
             new_src = f"data:image/webp;base64,{base64_string}"
             return new_src
 
-def parse(path: str) -> List[Dict[str, str]]:
+def parse(path: str) -> List[FunctionInfo]:
     """
-        Reads a file get the AppServer class and then get all routes -> List[{name: str, return: str, method: str}].
+        Reads a file get the AppServer class and then get all routes -> List[FunctionInfo].
     """
 
     content = read_file(path)
@@ -138,52 +140,85 @@ def parse(path: str) -> List[Dict[str, str]]:
         if isinstance(node, ast.ClassDef):
 
             if node.name == "AppServer":
+                # Create a generator that filters the methods
+                items: Iterable[ast.FunctionDef | ast.AsyncFunctionDef] = (item for item in node.body if isinstance(item, ast.FunctionDef) or isinstance(item, ast.AsyncFunctionDef))
 
-                for item in node.body:
-                    # Checks if its a method
-                    if isinstance(item, ast.FunctionDef):
-                        name = item.name
-                        keywords = ("get_", "post_", "put_", "delete_")
-                        actual_key = ""
+                for item in items:
+                    name = item.name
+                    keywords = ("get_", "post_", "put_", "delete_")
+                    actual_key = ""
+                    # Check to see if its a route or a normal method
+                    found = False
+                    for key in keywords:
+                        found = name.startswith(key.upper())
+                        if found:
+                            actual_key = key[:-1]
+                            break
+                    
+                    if not found:
+                        continue
+                    
+                    returns = ""
 
-                        # Check to see if its a route or a normal method
-                        found = False
-                        for key in keywords:
-                            found = name.startswith(key.upper())
+                    if item.returns:
+                        returns = ast.unparse(item.returns)
 
-                            if found:
-                                actual_key = key[:-1]
-                                break
-                        
-                        if not found:
-                            continue
-
-                        returns = ""
-                        if item.returns:
-                            returns = ast.unparse(item.returns)
-
-                        methods.append({
-                            "name": name[len(actual_key)+1:],
-                            "returns": returns,
-                            "method": actual_key
-                        })
+                    args = item.args.args
+                    inputs: list[Args] = []
+                    if args and args[0].arg == "self":
+                        args = args[1:]
+                        for arg in args:
+                            arg_name = arg.arg
+                            annotation = ""
+                            if arg.annotation:
+                                annotation = ast.unparse(arg.annotation)
+                            
+                            inputs.append({"name": arg_name, "type": annotation})
+                    
+                    methods.append({
+                        "name": name[len(actual_key)+1:],
+                        "returns": returns,
+                        "input": inputs,
+                        "method": actual_key
+                    })
                 break
     
     return methods
 
-def create_function(function_info: Dict[str, str]):
+def create_function(function_info: FunctionInfo):
     """
         Creates a typescript function in server.ts for each route in the AppServer
     """
+    name: str = function_info['name'] if type(function_info['name']) is str else "ERROR_FUNCTION"
 
-    route = "/"+function_info['name'].replace("_", "/")
+    route = "/"+name.replace("_", "/")
     method = function_info['method']
+    args = function_info['input']
+    
+    if type(args) is list and len(args) > 0:
+        conversion_table = {
+            "str": "string",
+            "int": "number",
+            "float": "number"
+        }
+        
+        # Format each argument to the ts version
+        formated = [f"{arg["name"]}: {conversion_table[arg["type"]]}" for arg in args]
+        
+        # Rewrites the route
+        route += "/" + "/".join([f"${{{arg["name"]}}}" for arg in args])
+
+        # Finishes by formating all arguments in args
+        args = ", ".join(formated)
+    else:
+        # Destroy the list if its len(args) < 1
+        args = ""
 
     if method == "get":
         return f"""
-export function {function_info['name']}() {{
+export function {function_info['name']}({args}) {{
   // Fetches data from the '{route}' endpoint.
-  return fetch('{route}')
+  return fetch(`{route}`)
     .then(res => {{
       if (!res.ok) {{
         throw new Error(`HTTP error! Status: ${{res.status}}`);
@@ -203,7 +238,7 @@ export function {function_info['name']}() {{
         return f"""
 export function {function_info['name']}(data: any) {{
   // Sends a {method_upper} request to the '{route}' endpoint.
-  return fetch('{route}', {{
+  return fetch(`{route}`, {{
     method: '{method_upper}',
     headers: {{
       'Content-Type': 'application/json',
@@ -253,13 +288,12 @@ def pack_server_functions():
     """
     functions_info = parse("main.py")
     functions = [create_function(item) for item in functions_info]
-    
-    for f in functions_info:
-        print(f)
 
     server_ts = ""
 
     for item in functions:
+        if item is None:
+            continue
         server_ts += item
     
     with open("src/server.ts", "w") as fd:
@@ -280,8 +314,8 @@ def pack_app(DEV = False) -> str:
     script_tag = soup.find("script", {"id": "bundle"})
 
     if script_tag:
-        del script_tag["src"]
-        script_tag.string = bundle
+        del script_tag["src"] # pyright: ignore[reportIndexIssue]
+        script_tag.string = bundle # pyright: ignore[reportAttributeAccessIssue]
 
     # Removes link tag and add style tag
     link_tag = soup.find("link", rel="stylesheet")
@@ -298,16 +332,19 @@ def pack_app(DEV = False) -> str:
     # Build actions
     if not DEV:
         # Remove the dev reload
-        reload_script = soup.find("script", {"id": "DEV_RELOAD"})
+        search = soup.find("script", {"id": "DEV_RELOAD"})
+        reload_script = search if search is not None else soup
         reload_script.decompose()
 
         # Grab all images and put them in the page itself as a uri, if cant get image, print to the console which image is the problemn and continue
         images = soup.select("img")
         for img in images:
-            src = img.get("src")
+            search = img.get("src")
+            # Makes sure that its a valid link or a placeholder
+            src = search if search is not None else "placeholder"
             
             try:
-                img["src"] = convert_image(src)
+                img["src"] = convert_image(src) # pyright: ignore[reportArgumentType]
             except FileNotFoundError as err:
                 print(err)
 
@@ -316,7 +353,7 @@ def pack_app(DEV = False) -> str:
 
     return app_string
 
-def get_package() -> Dict[str, str]:
+def get_package() -> Dict[str, str | Dict[str, str]]:
     """
         Gets package.json or close the entire programn if not found
     """
@@ -329,7 +366,7 @@ def get_package() -> Dict[str, str]:
 
 def project_name() -> str:
     package = get_package()
-    return package['project-name']
+    return package['project-name'] if type(package['project-name']) is str else "ERROR_NAME"
 
 def create_base_dirs() -> None:
     """
@@ -418,7 +455,8 @@ def list_scripts():
     Lists the scripts available in package.json
     """
     package = get_package()
-    scripts = package["scripts"].keys()
+    scripts = package["scripts"]
+    scripts = scripts.keys() if type(scripts) is Dict else {"ERROR": "ERROR in list_scripts"}
     print("Found", len(scripts), "scripts:")
     for s in scripts:
         print("\b - ", s)
